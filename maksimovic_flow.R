@@ -144,3 +144,38 @@ plotMDS(getM(mSetSqFlt), top=1000, gene.selection="common",
 legend("top", legend=levels(factor(targets$Sample_Plate)), text.col=pal,
        bg="white", cex=0.7)
 
+
+# calculate M-values for statistical analysis
+mVals <- getM(mSetSqFlt)
+head(mVals[,1:5])
+
+bVals <- getBeta(mSetSqFlt)
+head(bVals[,1:5])
+
+par(mfrow=c(1,2))
+densityPlot(bVals, sampGroups=targets$Sample_Group, main="Beta values",
+            legend=FALSE, xlab="Beta values")
+densityPlot(mVals, sampGroups=targets$Sample_Group, main="M-values",
+            legend=FALSE, xlab="M values")
+
+
+
+
+case.control <- factor(targets$Case.Control)
+ethnicity <- factor(targets$Ethnicity)
+design <- model.matrix(~0+case.control+ethnicity, data=targets)
+colnames(design) <- c("Case","Control","Hispanic","OtherEth","White")
+
+fit <- lmFit(mVals, design)
+contMatrix <- makeContrasts(Case-Control,Hispanic-White,levels=design)
+
+# fit the contrasts
+fit2 <- contrasts.fit(fit, contMatrix)
+fit2 <- eBayes(fit2)
+
+
+# get the table of results for the first contrast (naive - rTreg)
+ann450kSub <- ann450k[match(rownames(mVals),ann450k$Name),
+                      c(1:4,12:19,24:ncol(ann450k))]
+DMPs <- topTable(fit2, num=Inf, coef=1, genelist=ann450kSub)
+head(DMPs)
