@@ -161,19 +161,19 @@ densityPlot(mVals, sampGroups=targets$Sample_Group, main="M-values",
 
 
 
-case.control <- factor(targets$Case.Control)
+case_control <- factor(targets$Case.Control)
 ethnicity <- factor(targets$Ethnicity)
 gender <- factor(targets$Gender)
-education <- as.numeric(targets$Education)
+#education <- as.numeric(targets$Education)
 cd8t <- as.numeric(targets$CD8T)
 cd4t <- as.numeric(targets$CD4T)
 nk <- as.numeric(targets$NK)
 mono <- as.numeric(targets$Mono)
 gran <- as.numeric(targets$Gran)
-smoking <- as.factor(targets$Smoking)
+smoking <- factor(targets$Smoking)
 
-design <- model.matrix(~0 + case.control + ethnicity + gender + cd8t + cd4t + nk + mono + gran + Smoking, data=targets)
-colnames(design)<-c("Case","Control","Hispanic","Other","White","Gender","CD8T","CD4","NK","MONO","GRAN","Smoking")
+design <- model.matrix(~0+case_control+Smoking+gender+cd8t+cd4t+nk+mono+gran+ethnicity, data=targets)
+colnames(design)<-c("Case","Control","Smoking","Gender","CD8T","CD4","NK","MONO","GRAN","Hispanic","Other","White")
 cmtx <- makeContrasts( "Case-Control", levels=design)
 fit <- lmFit(mVals, design)
 fit2 <- contrasts.fit(fit, cmtx)
