@@ -1,7 +1,8 @@
 require(minfi) #1.8.7
 require(IlluminaHumanMethylation450kmanifest)
-targets=read.450k.sheet("/cluster/ifs/projects/brody/fetal_alcohol_methylation_study/Tsai_Sample_083/",pattern="Sheet.csv$")
-RGset=read.450k.exp(base="/cluster/ifs/projects/brody/fetal_alcohol_methylation_study/Tsai_Sample_083/iDat",targets=targets)
+targets=read.450k.sheet("/data/mcgaugheyd/projects/nhgri/brody/fetal_alcohol_methylation_study/Tsai_Sample_083/",pattern="Sheet.csv$")
+RGset=read.450k.exp(targets=targets)
+sampleNames(RGset) <- targets$Sample_Name
 Mset.swan=preprocessSWAN(RGset)
 Mset.swan.fixOutliers=fixMethOutliers(Mset.swan,verbose=TRUE)
 Beta.swan.fixOutliers=getBeta(Mset.swan.fixOutliers,type="Illumina")
