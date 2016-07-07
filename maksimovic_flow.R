@@ -163,19 +163,19 @@ densityPlot(mVals, sampGroups=targets$Sample_Group, main="M-values",
 
 case.control <- factor(targets$Case.Control)
 ethnicity <- factor(targets$Ethnicity)
-design <- model.matrix(~0+case.control+ethnicity, data=targets)
-colnames(design) <- c("Case","Control","Hispanic","OtherEth","White")
+gender <- factor(targets$Gender)
+education <- as.numeric(targets$Education)
+cd8t <- as.numeric(targets$CD8T)
+cd4t <- as.numeric(targets$CD4T)
+nk <- as.numeric(targets$NK)
+mono <- as.numeric(targets$Mono)
+gran <- as.numeric(targets$Gran)
+smoking <- as.factor(targets$Smoking)
 
+design <- model.matrix(~0 + case.control + ethnicity + gender + cd8t + cd4t + nk + mono + gran + Smoking, data=targets)
+colnames(design)<-c("Case","Control","Hispanic","Other","White","Gender","CD8T","CD4","NK","MONO","GRAN","Smoking")
+cmtx <- makeContrasts( "Case-Control", levels=design)
 fit <- lmFit(mVals, design)
-contMatrix <- makeContrasts(Case-Control,Hispanic-White,levels=design)
-
-# fit the contrasts
-fit2 <- contrasts.fit(fit, contMatrix)
+fit2 <- contrasts.fit(fit, cmtx)
 fit2 <- eBayes(fit2)
-
-
-# get the table of results for the first contrast (naive - rTreg)
-ann450kSub <- ann450k[match(rownames(mVals),ann450k$Name),
-                      c(1:4,12:19,24:ncol(ann450k))]
-DMPs <- topTable(fit2, num=Inf, coef=1, genelist=ann450kSub)
-head(DMPs)
+summary(decideTests(fit2))
