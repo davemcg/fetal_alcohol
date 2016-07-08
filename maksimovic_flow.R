@@ -1,6 +1,8 @@
 # ssh -Y biowulf2.nih.gov
 # sinteractive --mem=20G --x11=first
 # module load R/3.3.0_gcc-4.9.1
+
+
 # package loading
 library(data.table)
 library(dplyr)
@@ -16,8 +18,11 @@ library(DMRcate)
 library(stringr)
 library(data.table)
 library(dplyr)
-# closely follows the workflow laid out by Maksimovic et al.
+# mostly follows the workflow laid out by Maksimovic et al.
 # http://f1000research.com/articles/5-1281/v1
+
+# sva correction
+# https://www.bioconductor.org/help/course-materials/2015/BioC2015/methylation450k.html#batch-effects-correction-with-sva
 
 # pull annotation
 ann450k <-  getAnnotation(IlluminaHumanMethylation450kanno.ilmn12.hg19)
@@ -62,7 +67,8 @@ legend("topleft", legend=levels(factor(targets$Sample_Group)), fill=pal,
 
 
 # normalize the data; this results in a GenomicRatioSet object
-mSetSq <- preprocessQuantile(rgSet)
+set.seed(23345230974)
+mSetSq <- preprocessSWAN(rgSet)
 
 # create a MethylSet object from the raw data for plotting
 mSetRaw <- preprocessRaw(rgSet)
@@ -114,11 +120,11 @@ table(keep)
 
 # pull in my cg sites that I'm skipping due to overlap with SNPs and 
 # are cross-reactive and are on chrs X Y
+#mSetSqFlt <- dropLociWithSnps(mSetSqFlt, snps=c("SBE","CpG"), maf=0)
 cg_remove_1 <- scan('~/git/fetal_alcohol/450k_cg_sites_that_LITERALLY_are_on_SNPS.maf005_somepop_plus1bp.txt',what='character')
 cg_remove_2 <- scan('~/git/fetal_alcohol/450k_cg_sites_that_overlap_dbsnp138.maf005_somepop_plus1bp.txt',what='character')
 xReactive <- scan('~/git/fetal_alcohol/illumina450k_positions_to_exclude.not_including_dbsnp_overlapping.withChen.dat',what='character')
-cg_remove <- c(cg_remove_1, cg_remove_2, xReactive)
-cg_remove <- unique(cg_remove)
+cg_remove <- unique(c(cg_remove_1,cg_remove_2,xReactive))
 
 keep <- !(featureNames(mSetSqFlt) %in% cg_remove)
 table(keep)
@@ -167,7 +173,7 @@ densityPlot(mVals, sampGroups=targets$Sample_Group, main="M-values",
 # explicitly match targets sample order (rows) with mVars
 targets <- targets[match(colnames(mVals), targets$Sample),]
 
-
+# setup for limma
 case_control <- factor(targets$Case.Control)
 ethnicity <- factor(targets$Ethnicity)
 gender <- factor(targets$Gender)
@@ -177,15 +183,28 @@ cd4t <- as.numeric(targets$CD4T)
 nk <- as.numeric(targets$NK)
 mono <- as.numeric(targets$Mono)
 gran <- as.numeric(targets$Gran)
-smoking <- factor(targets$Smoking)
-
+#smoking <- factor(targets$Smoking)
+ 
+# limma run
 design <- model.matrix(~0+case_control+gender+cd8t+cd4t+nk+mono+gran+ethnicity, data=targets)
+design_ethnicity <- model.matrix(~0+ethnicity+case_control+gender+cd8t+cd4t+nk+mono+gran, data=targets)
+
 colnames(design)<-c("Case","Control","Gender","CD8T","CD4","NK","MONO","GRAN","Hispanic","Other","White")
+colnames(design_ethnicity)<-c("Black","Hispanic","Other","White","Case.Control","Gender","CD8T","CD4","NK","MONO","GRAN")
+
 cmtx <- makeContrasts( "Case-Control", levels=design)
+cmtx_ethnicity <- makeContrasts( "Black-White", levels=design_ethnicity)
+
 fit <- lmFit(mVals, design)
 fit2 <- contrasts.fit(fit, cmtx)
 fit2 <- eBayes(fit2)
 summary(decideTests(fit2))
+
+fit_eth <- lmFit(mVals, design_ethnicity)
+fit2_eth <- contrasts.fit(fit_eth, cmtx_ethnicity)
+fit2_eth <- eBayes(fit2_eth)
+summary(decideTests(fit2_eth))
+
 
 
 # get the table of results for the first contrast 
@@ -194,7 +213,8 @@ ann450kSub <- ann450k[match(rownames(mVals),ann450k$Name),
 DMPs <- topTable(fit2, num=Inf, coef=1, genelist=ann450kSub)
 head(DMPs)
 
-
+DMPs_eth <- topTable(fit2_eth, num=Inf, coef=1, genelist=ann450kSub)
+head(DMPs_eth)
 
 myAnnotation <- cpg.annotate(mVals, datatype = "array",
                              analysis.type="differential", design=design,
@@ -208,6 +228,25 @@ groups <- c(Case='magenta',Control='forestgreen')
 cols <- groups[as.character(targets$Case.Control)]
 DMR.plot(ranges=results.ranges,dmr=1,CpGs=mVals,phen.col=as.factor(targets$Case.Control),genome='hg19')
 DMR.plot(ranges=results.ranges,dmr=1,CpGs=mVals,phen.col=cols,genome='hg19',samps=c(1:10))
+
+
+
+
+###########################
+# don't use, results in a confusing mess
+#
+# RUV to improve signal by removing spurious patterns
+# https://www.bioconductor.org/packages/devel/bioc/vignettes/missMethyl/inst/doc/missMethyl.pdf
+# first, ID positions that do not contribute to case-control 
+# this part is kind of fuzzy and I selected 0.9 because that resulted in ~ 1/3 false and 2/3 true
+ctl <- rownames(mVals) %in% rownames(DMPs[DMPs$adj.P.Val > 0.9,])
+table(ctl)
+grp <- factor(targets$Case.Control,levels=c("Case","Control"))
+des <- model.matrix(~grp)
+rfit1 <- RUVfit(data=mVals, design=des, coef=2, ctl=ctl) # Stage 2 analysis
+rfit2 <- RUVadj(rfit1)
+nrow(topRUV(rfit2,number = Inf) %>% filter(p.ebayes.BH<0.05))
+##############################
 
 
 
