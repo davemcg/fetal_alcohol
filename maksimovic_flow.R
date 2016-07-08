@@ -246,6 +246,15 @@ des <- model.matrix(~grp)
 rfit1 <- RUVfit(data=mVals, design=des, coef=2, ctl=ctl) # Stage 2 analysis
 rfit2 <- RUVadj(rfit1)
 nrow(topRUV(rfit2,number = Inf) %>% filter(p.ebayes.BH<0.05))
+
+# SVA. also doesn't work
+# https://www.bioconductor.org/help/course-materials/2015/BioC2015/methylation450k.html#batch-effects-correction-with-sva
+library(sva)
+mod <- model.matrix(~0+case_control+gender+cd8t+cd4t+nk+mono+gran+ethnicity, data=targets)
+#mod <- model.matrix(case_control, data=targets)
+mod0 <- model.matrix(~0+gender+cd8t+cd4t+nk+mono+gran+ethnicity, data=targets)
+#mod0 <- model.matrix(~1, data=targets)
+sva.results <- sva(mVals, mod, mod0)
 ##############################
 
 
