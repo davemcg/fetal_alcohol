@@ -255,6 +255,17 @@ mod <- model.matrix(~0+case_control+gender+cd8t+cd4t+nk+mono+gran+ethnicity, dat
 mod0 <- model.matrix(~0+gender+cd8t+cd4t+nk+mono+gran+ethnicity, data=targets)
 #mod0 <- model.matrix(~1, data=targets)
 sva.results <- sva(mVals, mod, mod0)
+
+#re-run limma
+design <- model.matrix(~0+case_control+gender+cd8t+cd4t+nk+mono+gran+ethnicity, data=targets)
+design_ethnicity <- model.matrix(~0+ethnicity+case_control+gender+cd8t+cd4t+nk+mono+gran, data=targets)
+
+colnames(design)<-c("Case","Control","Gender","CD8T","CD4","NK","MONO","GRAN","Hispanic","Other","White")
+colnames(design_ethnicity)<-c("Black","Hispanic","Other","White","Case.Control","Gender","CD8T","CD4","NK","MONO","GRAN")
+
+cmtx <- makeContrasts( "Case-Control", levels=design)
+cmtx_ethnicity <- makeContrasts( "Black-White", levels=design_ethnicity)
+
 ##############################
 
 
