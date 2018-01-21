@@ -6,6 +6,7 @@ date: "July 7, 2016 | September 22, 2017"
 output: 
   html_notebook:
     toc: true
+    keep_md: true
 ---
 
 ```{r setup, include=FALSE}
@@ -47,7 +48,8 @@ ann450k <-  getAnnotation(IlluminaHumanMethylation450kanno.ilmn12.hg19)
 #   https://github.com/davemcg/fetal_alcohol
 #   GSE65428
 metadata <- fread('~/git/fetal_alcohol/sentrix_id_conversion_table_demographics_v6.txt')
-targets <- read.metharray.sheet("/Volumes/ThunderBay/PROJECTS/brody/fetal_alcohol/Tsai_Sample_083/",pattern="Sheet.csv$")
+#targets <- read.metharray.sheet("/Volumes/ThunderBay/PROJECTS/brody/fetal_alcohol/Tsai_Sample_083/",pattern="Sheet.csv$")
+targets <- read.metharray.sheet("~/Desktop/fetal_alcohol/Tsai_Sample_083/",pattern="Sheet.csv$")
 rgSet <- read.metharray.exp(targets=targets)
 sampleNames(rgSet) <- rgSet$Sample_Name
 
@@ -304,5 +306,14 @@ sapply(rownames(topDV)[1:10], function(cpg){
 })
 ```
 
+# Comparison with *DNA methylation signature of human fetal alcohol spectrum disorder* Portales-Casamar, Lussier, Kobor et al.
+```{r}
+kobor_sig <- readxl::read_xlsx('13072_2016_74_MOESM2_ESM.xlsx')
+kobor_probes <- kobor_sig %>% pull(Probe)
+```
+
+
 ## Conclusion
 Largely the same results I believe. But reviewers shouldn't have any issue with the analysis pipeline. 
+
+
