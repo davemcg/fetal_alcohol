@@ -2,11 +2,14 @@
 title: Reanalysis of DNA methylation analyses in archived newborn bloodspots reveal
   signals associated with fetal alcohol syndrome, maternal smoking, gender, and ethnicity
 author: "David McGaughey"
-date: "July 7, 2016 | September 22, 2017"
-output: 
+date: "July 7, 2016 | September 22, 2017 | January, 2018"
+output:
   html_notebook:
-    toc: true
-    keep_md: true
+    toc: yes
+  html_document:
+    df_print: paged
+    toc: yes
+    keep_md: yes
 ---
 
 ```{r setup, include=FALSE}
@@ -258,6 +261,11 @@ sapply(rownames(DMPs)[1:16], function(cpg){
 })
 ```
 
+## manhattan plot
+```{r}
+library(qqman)
+manhattan(DMPs %>% mutate(CHR=as.numeric(gsub('chr','',chr)), BP=pos, P = P.Value))
+```
 ## Differential methylation analysis of regions
 The probe-wise test did not find much of anything, so let's try the dmrcate package to find regions of differential methylation
 
@@ -307,13 +315,40 @@ sapply(rownames(topDV)[1:10], function(cpg){
 ```
 
 # Comparison with *DNA methylation signature of human fetal alcohol spectrum disorder* Portales-Casamar, Lussier, Kobor et al.
+
+## hypergeometric test
 ```{r}
 kobor_sig <- readxl::read_xlsx('13072_2016_74_MOESM2_ESM.xlsx')
 kobor_probes <- kobor_sig %>% pull(Probe)
+
+# number of Kobor probes in our dataset
+overlap_num <- DMPs %>% tibble::rownames_to_column('Probe') %>% filter(Probe %in% kobor_probes) %>% nrow()
+# https://stats.stackexchange.com/questions/16247/calculating-the-probability-of-gene-list-overlap-between-an-rna-seq-and-a-chip-c
+# https://www.biostars.org/p/90662/
+phyper(q = DMPs %>% tibble::rownames_to_column('Probe') %>% filter(Probe %in% kobor_probes, P.Value < (0.05/overlap_num)) %>% nrow(),
+       m = DMPs %>% filter(P.Value < 0.05/overlap_num) %>% nrow(),
+       n = (DMPs %>% nrow()) - (DMPs %>% filter(P.Value < 0.05/overlap_num) %>% nrow()),
+       k = length(kobor_probes),
+       lower.tail = FALSE)
 ```
 
+## distribution of logFC between Kobor sig probes and not Kobor sig probes
+```{r}
+library(ggplot2)
+DMPs %>% 
+  tibble::rownames_to_column('Probe') %>% 
+  mutate(Kobor_sig = case_when(Probe %in% kobor_probes ~ 'Yes',
+                               TRUE ~ 'No')) %>% 
+  ggplot(aes(x=logFC, colour=Kobor_sig)) + 
+  geom_density() +
+  theme_bw()
+```
+
+## the successes between Kobor and ours
+```{r}
+DMPs %>% tibble::rownames_to_column('Probe') %>% filter(Probe %in% kobor_probes, P.Value < (0.05/overlap_num))
+```
 
 ## Conclusion
-Largely the same results I believe. But reviewers shouldn't have any issue with the analysis pipeline. 
-
+We have several hundred significant probes
 
