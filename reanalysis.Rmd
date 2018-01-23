@@ -338,7 +338,7 @@ legend <- get_legend(up_plot + theme(legend.position="left"))
 prow <- plot_grid(up_plot + theme(legend.position="none"), 
                   down_plot + theme(legend.position="none"), 
                   nrow=2, align = 'hv', labels = c('B','C'))
-plot_grid(volcano, prow, legend, nrow=1, rel_widths = c(1,1,0.1))
+plot_grid(plot_grid(volcano, labels=c('A')), prow, legend, nrow=1, rel_widths = c(1,1,0.1))
 
 ```
 
