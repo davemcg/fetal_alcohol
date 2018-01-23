@@ -58,7 +58,7 @@ ann450k <-  getAnnotation(IlluminaHumanMethylation450kanno.ilmn12.hg19)
 #   GSE65428
 metadata <- fread('~/git/fetal_alcohol/sentrix_id_conversion_table_demographics_v6.txt')
 targets <- read.metharray.sheet("/Volumes/ThunderBay/PROJECTS/brody/fetal_alcohol/Tsai_Sample_083/",pattern="Sheet.csv$")
-#targets <- read.metharray.sheet("~/Desktop/fetal_alcohol/Tsai_Sample_083/",pattern="Sheet.csv$")
+targets <- read.metharray.sheet("~/Desktop/fetal_alcohol/Tsai_Sample_083/",pattern="Sheet.csv$")
 rgSet <- read.metharray.exp(targets=targets)
 sampleNames(rgSet) <- rgSet$Sample_Name
 
@@ -249,14 +249,16 @@ fit <- lmFit(mVals, design)
 fit2 <- contrasts.fit(fit, cmtx)
 fit2 <- eBayes(fit2)
 summary(decideTests(fit2))
+```
 
-
+# Annotate
+```{r}
 # get the table of results for the first contrast 
 ann450kSub <- ann450k[match(rownames(mVals),ann450k$Name),
                       c(1:4,12:19,24:ncol(ann450k))]
 DMPs <- topTable(fit2, num=Inf, coef=1, genelist=ann450kSub)
 
-# add more annotations
+# add MORE annotations
 annots = c('hg19_cpgs', 'hg19_basicgenes', 'hg19_genes_intergenic')
 annotations = build_annotations(genome = 'hg19', annotations = annots)       
 DMP_extra <- DMPs %>% mutate(end=pos, start=pos) 
@@ -274,6 +276,10 @@ head(DMPs_e, n=10)
 # get beta values 
 bVals <- getBeta(mSetSq)
 
+
+```
+
+```{r}
 # custom fuction to make data avail for ggplot
 grabber <- function(cg_id){
   data <- bVals[cg_id,]
