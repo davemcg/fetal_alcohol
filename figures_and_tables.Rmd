@@ -23,7 +23,7 @@ library(cowplot)
 load('reanalysis_processed.Rdata')
 ```
 # Figure 1
-```{r}
+```{r, fig.width=6, fig.height=4}
 # custom fuction to make data avail for ggplot
 grabber <- function(cg_id){
   data <- bVals[cg_id,]
@@ -62,7 +62,7 @@ down <- grabber(top_CG_down)
 
 up_plot <- ggplot(up, aes(x=Group, y=Beta, colour=Group)) + 
   facet_wrap(~Probe, ncol=10, strip.position = 'bottom') + 
-  geom_boxplot(width=0.4, outlier.shape = NA,position = position_dodge2(preserve = "total")) +
+  geom_boxplot(width=0.4, outlier.shape = NA) +
   geom_quasirandom(size=0.5, alpha=0.4) +
   theme_minimal() +
   ggsci::scale_colour_nejm() +
@@ -75,7 +75,7 @@ up_plot <- ggplot(up, aes(x=Group, y=Beta, colour=Group)) +
 
 down_plot <- ggplot(down, aes(x=Group, y=Beta, colour=Group)) + 
   facet_wrap(~Probe, ncol=10, strip.position = 'bottom') + 
-  geom_boxplot(width=0.4, outlier.shape = NA,position = position_dodge2(preserve = "total")) +
+  geom_boxplot(width=0.4, outlier.shape = NA) +
   geom_quasirandom(size=0.5, alpha=0.4) +
   theme_minimal() +
   ggsci::scale_colour_nejm() +
@@ -95,7 +95,7 @@ plot_grid(volcano, box_plots, legend, nrow=1, labels=c('A',NULL,NULL),rel_widths
 ```
 
 # Figure 2
-```{r, fig.width=4, fig.height=1}
+```{r, fig.width=6, fig.height=2}
 gfi1 <- DMP_e %>% filter(chr=='chr1', pos > 92940000, pos < 92955000) %>% arrange(chr, pos) %>% pull(Probe)
 gfi1_b <- grabber(gfi1)
 gfi1_b <- left_join(gfi1_b, DMP_e %>% filter(grepl('GFI1$', Symbol)), by=c('Probe')) 
@@ -129,7 +129,7 @@ map3_gene <- ggplot() + geom_alignment(ensdb, which = TxNameFilter("ENST00000424
   coord_cartesian(xlim=c(map13_start,map13_stop)) + xlab('MAP3K13')
 
 
-plot_grid(gfi1_plot + theme(legend.position="none"), map13_plot, gfi_gene, map3_gene, labels = c('A','B',NULL,NULL), ncol=2, align='v', axis = 'lr', rel_heights = c(1,0.2))
+plot_grid(gfi1_plot + theme(legend.position="none"), map13_plot, gfi_gene, map3_gene, labels = c('A','B',NULL,NULL), ncol=2, align='v', axis = 'lr', rel_heights = c(1,0.3))
 ```
 
 # GO enrichment
@@ -151,17 +151,17 @@ write_tsv(background %>% arrange(chr, pos) %>% mutate(pos2=as.integer(pos2)),pat
 
 
 # Table 2
+Currently filtering at FDR < 0.1.
+In paper with FDR < 0.01 (11 probes)?
 ```{r}
-DMP_e %>% dplyr::select(Probe, chr, pos, Gene=Symbol, Type, logFC,FDR = adj.P.Val) %>% filter(FDR < 0.05) %>% mutate(Type = gsub('_',' ', Type)) %>% mutate(Type=gsub('hg19 genes ','',Type)) %>% mutate(Type=gsub('hg19 cpg ','',Type))
+table2_1 <- DMP_e %>% dplyr::select(Probe, chr, pos, Gene=Symbol, Type, logFC,FDR = adj.P.Val) %>% filter(FDR < 0.1) %>% mutate(Type = gsub('_',' ', Type)) %>% mutate(Type=gsub('hg19 genes ','',Type)) %>% mutate(Type=gsub('hg19 cpg ','',Type))
+table2_1
+write.csv(table2_1, file='figures/table2.csv')
+
 ```
 
 # Kobor validation 
 ## Table 3
-```{r}
-DMP_e %>% filter(Probe %in% kobor_probes, P.Value < (0.05/overlap_num)) %>% dplyr::select(Probe, chr, pos, Gene=Symbol, Type, logFC,FDR = adj.P.Val)  %>% mutate(Type = gsub('_',' ', Type)) %>% mutate(Type=gsub('hg19 genes ','',Type)) %>% mutate(Type=gsub('hg19 cpg ','',Type))
-```
-
-## Supplementary Figure 1
 ```{r}
 kobor_sig <- readxl::read_xlsx('13072_2016_74_MOESM2_ESM.xlsx')
 kobor_probes <- kobor_sig %>% pull(Probe)
@@ -170,6 +170,13 @@ kobor_sig2 <- readxl::read_xlsx('13148_2018_439_MOESM1_ESM.xlsx', sheet = 'Suppl
 kobor_probes_validate2 <- kobor_sig2 %>% pull(CpG)
 # number of Kobor probes in our dataset
 overlap_num <- DMPs %>% tibble::rownames_to_column('Probe') %>% filter(Probe %in% kobor_probes) %>% nrow()
+
+DMP_e %>% filter(Probe %in% kobor_probes, P.Value < (0.05/overlap_num)) %>% dplyr::select(Probe, chr, pos, Gene=Symbol, Type, logFC,FDR = adj.P.Val)  %>% mutate(Type = gsub('_',' ', Type)) %>% mutate(Type=gsub('hg19 genes ','',Type)) %>% mutate(Type=gsub('hg19 cpg ','',Type))
+```
+
+## Supplementary Figure 1
+```{r}
+
 
 z <- DMPs %>% 
   tibble::rownames_to_column('Probe') %>% 
