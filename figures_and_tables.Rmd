@@ -11,6 +11,9 @@ output:
 ---
 
 ```{r}
+library(ggbio)
+library(EnsDb.Hsapiens.v75)
+ensdb <- EnsDb.Hsapiens.v75
 library(tidyverse)
 library(ggbeeswarm)
 library(ggthemes)
@@ -19,7 +22,7 @@ library(ggsci)
 library(cowplot)
 load('reanalysis_processed.Rdata')
 ```
-
+# Figure 1
 ```{r}
 # custom fuction to make data avail for ggplot
 grabber <- function(cg_id){
@@ -41,17 +44,19 @@ volcano <- DMP_e %>%
   geom_point(aes(colour=Significant)) +
   geom_label_repel(
     data = DMP_e %>% 
-    mutate(Label= case_when(Symbol=='' ~ Probe,
-                            TRUE ~ paste(Probe, Symbol, sep=' | '))) %>% 
-    filter(adj.P.Val < 0.001 | adj.P.Val < 0.01 & abs(logFC) > 0.4 | adj.P.Val < 0.1 & grepl('GFI1', Symbol)),
+      mutate(Label= case_when(Symbol=='' ~ Probe,
+                              TRUE ~ paste(Probe, Symbol, sep=' | '))) %>% 
+      filter(adj.P.Val < 0.1 & grepl('MAP3K13', Symbol) | adj.P.Val < 0.1 & grepl('GFI1', Symbol)),
     aes(label = Label),
-    alpha=0.5) +
+    alpha=0.5,
+    force=10,
+    max.iter = 100000) +
   coord_cartesian(xlim=c(-0.75,0.75)) +
   ylab('-log10(P value)')
 
 # plot most significantly differentially methylated CpGs
-top_CG_up <- DMPs %>% tibble::rownames_to_column('Probe') %>% filter(logFC > 0) %>% arrange(P.Value) %>%  dplyr::slice(1:5) %>% pull(Probe)
-top_CG_down <- DMPs %>% tibble::rownames_to_column('Probe') %>% filter(logFC < 0) %>% arrange(P.Value) %>% dplyr::slice(1:5) %>% pull(Probe)
+top_CG_up <- DMP_e  %>% filter(adj.P.Val < 0.1 & grepl('MAP3K13', Symbol)) %>% arrange(P.Value) %>%  pull(Probe)
+top_CG_down <- DMP_e  %>% filter(adj.P.Val < 0.1 & grepl('GFI1', Symbol)) %>% arrange(P.Value) %>%  pull(Probe)
 up <- grabber(top_CG_up)
 down <- grabber(top_CG_down)
 
@@ -87,4 +92,107 @@ box_plots <- plot_grid(up_plot + theme(legend.position="none"),
                        nrow=2, align = 'h', labels = c('B','C'))
 plot_grid(volcano, box_plots, legend, nrow=1, labels=c('A',NULL,NULL),rel_widths = c(2,1,0.2))
 
+```
+
+# Figure 2
+```{r, fig.width=4, fig.height=1}
+gfi1 <- DMP_e %>% filter(chr=='chr1', pos > 92940000, pos < 92955000) %>% arrange(chr, pos) %>% pull(Probe)
+gfi1_b <- grabber(gfi1)
+gfi1_b <- left_join(gfi1_b, DMP_e %>% filter(grepl('GFI1$', Symbol)), by=c('Probe')) 
+gfi1_meaned <- gfi1_b %>% group_by(Group, Probe) %>% summarise(Beta = mean(Beta), pos=mean(pos))
+gfi1_plot <- gfi1_b %>% 
+  ggplot(aes(x=pos, y=Beta, group=Group, colour=Group))  + 
+  geom_jitter(width=100, alpha=0.01) + 
+  coord_cartesian(ylim=c(0,1)) + 
+  geom_line(data = gfi1_meaned %>% data.frame(), aes(x=pos,y=Beta,colour=Group), size=0.5) + 
+  scale_color_nejm() +
+  coord_cartesian(xlim=c(92940000,92955000)) + xlab('chr1')
+
+map13_start <- 185000000
+map13_stop <- 185010000
+map13 <- DMP_e %>% filter(chr=='chr3', pos > map13_start, pos < (map13_stop+1000000)) %>% arrange(chr, pos) %>% pull(Probe)
+map13 <- grabber(map13)
+map13<- left_join(map13, DMP_e %>% filter(chr=='chr3', pos > map13_start, pos < (map13_stop+1000000)), by=c('Probe')) 
+map13_meaned <- map13 %>% group_by(Group, Probe) %>% summarise(Beta = mean(Beta), pos=mean(pos))
+map13_plot <- map13 %>% 
+  ggplot(aes(x=pos, y=Beta, group=Group, colour=Group))  + 
+  geom_jitter(width=10, alpha=0.01) + 
+  coord_cartesian(ylim=c(0,1)) + 
+  geom_line(data = map13_meaned %>% data.frame(), aes(x=pos,y=Beta,colour=Group), size=0.5) + 
+  scale_color_nejm() +
+  coord_cartesian(xlim=c(map13_start,map13_stop)) + xlab('chr3')
+
+
+gfi_gene <- ggplot() + geom_alignment(ensdb, which = TxNameFilter("ENST00000427103"), names.expr=NULL, stat='identity') +
+  coord_cartesian(xlim=c(92940000,92955000)) + xlab('GFI1')
+map3_gene <- ggplot() + geom_alignment(ensdb, which = TxNameFilter("ENST00000424227"), names.expr=NULL, stat='identity') +
+  coord_cartesian(xlim=c(map13_start,map13_stop)) + xlab('MAP3K13')
+
+
+plot_grid(gfi1_plot + theme(legend.position="none"), map13_plot, gfi_gene, map3_gene, labels = c('A','B',NULL,NULL), ncol=2, align='v', axis = 'lr', rel_heights = c(1,0.2))
+```
+
+# GO enrichment
+Not much for GO enrichment when using Enrichr (only uses direct-ish overlaps between probes and genes)
+
+LOADS of stuff (but anything useful?) when using GREAT (which takes all probes and assigns closest gene)
+```{r}
+# paste these lists into enrichr (http://amp.pharm.mssm.edu/Enrichr/)
+DMP_e %>% filter(adj.P.Val < 0.05, logFC > 0) %>% pull(Symbol) %>% unique() %>% paste(., collapse = ',')
+
+DMP_e %>% filter(adj.P.Val < 0.05, logFC < 0) %>% pull(Symbol) %>% unique() %>% paste(., collapse = ',')
+
+# for GREAT (http://great.stanford.edu)
+sig <- DMP_e %>% dplyr::select(Probe, chr, pos, Gene=Symbol, Type, logFC,FDR = adj.P.Val) %>% filter(FDR < 0.05) %>% mutate(Type = gsub('_',' ', Type)) %>% mutate(Type=gsub('hg19 genes ','',Type)) %>% mutate(Type=gsub('hg19 cpg ','',Type)) %>% mutate(pos2=pos+1) %>% dplyr::select(chr, pos, pos2) %>% data.frame()
+write_tsv(sig, path='sig.bed', col_names = F)
+background <- DMP_e %>% mutate(pos2=pos+1) %>% dplyr::select(chr, pos, pos2)
+write_tsv(background %>% arrange(chr, pos) %>% mutate(pos2=as.integer(pos2)),path = 'background.bed', col_names = FALSE)
+```
+
+
+# Table 2
+```{r}
+DMP_e %>% dplyr::select(Probe, chr, pos, Gene=Symbol, Type, logFC,FDR = adj.P.Val) %>% filter(FDR < 0.05) %>% mutate(Type = gsub('_',' ', Type)) %>% mutate(Type=gsub('hg19 genes ','',Type)) %>% mutate(Type=gsub('hg19 cpg ','',Type))
+```
+
+# Kobor validation 
+## Table 3
+```{r}
+DMP_e %>% filter(Probe %in% kobor_probes, P.Value < (0.05/overlap_num)) %>% dplyr::select(Probe, chr, pos, Gene=Symbol, Type, logFC,FDR = adj.P.Val)  %>% mutate(Type = gsub('_',' ', Type)) %>% mutate(Type=gsub('hg19 genes ','',Type)) %>% mutate(Type=gsub('hg19 cpg ','',Type))
+```
+
+## Supplementary Figure 1
+```{r}
+kobor_sig <- readxl::read_xlsx('13072_2016_74_MOESM2_ESM.xlsx')
+kobor_probes <- kobor_sig %>% pull(Probe)
+
+kobor_sig2 <- readxl::read_xlsx('13148_2018_439_MOESM1_ESM.xlsx', sheet = 'Supplementary table 2')
+kobor_probes_validate2 <- kobor_sig2 %>% pull(CpG)
+# number of Kobor probes in our dataset
+overlap_num <- DMPs %>% tibble::rownames_to_column('Probe') %>% filter(Probe %in% kobor_probes) %>% nrow()
+
+z <- DMPs %>% 
+  tibble::rownames_to_column('Probe') %>% 
+  mutate(Kobor_sig = case_when(Probe %in% kobor_probes_validate2 ~ 'Validated',
+                               TRUE ~ 'No')) 
+
+
+t.test(z$logFC ~ z$Kobor_sig)
+
+z <- DMPs %>% 
+  tibble::rownames_to_column('Probe') %>% 
+  mutate(Kobor_sig = case_when(Probe %in% kobor_probes ~ 'Validated',
+                               TRUE ~ 'No')) 
+
+
+t.test(z$logFC ~ z$Kobor_sig)
+
+DMP_e %>% 
+ mutate(`Kobor Probes` = case_when(Probe %in% kobor_probes_validate2 ~ 'Validated',
+                               Probe %in% kobor_probes ~ 'Significant',
+                               TRUE ~ 'Not Significant')) %>% 
+  ggplot(aes(x=abs(logFC), colour=`Kobor Probes`)) + 
+  geom_density() +
+  theme_bw() +
+  scale_color_nejm() + coord_cartesian(xlim=c(0,0.5))
 ```
