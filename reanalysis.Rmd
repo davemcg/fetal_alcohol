@@ -271,80 +271,11 @@ DMP_c <- DMP_extra %>%
 DMP_e <- left_join(DMPs %>% tibble::rownames_to_column('Probe'), DMP_c, by=c('chr'='seqnames','pos'='start' ))
 
 head(DMPs, n=10)
-head(DMPs_e, n=10)
+head(DMP_e, n=10)
 
 # get beta values 
 bVals <- getBeta(mSetSq)
 
-
-```
-
-```{r}
-# custom fuction to make data avail for ggplot
-grabber <- function(cg_id){
-  data <- bVals[cg_id,]
-  data <- t(data) %>% data.frame() %>% tibble::rownames_to_column('Sample')
-  data$Group <- targets$Sample_Group 
-  data <- data %>% gather(Probe, Beta, -Group, -Sample)
-  data <- data %>% mutate(Group = case_when(Group == 'Case' ~ 'FAS',
-                                            TRUE ~ 'Control'))
-  return(data)
-}
-
-# volcano
-volcano <- DMP_e %>% 
-  mutate(Significant = case_when(adj.P.Val < 0.05 ~ 'FDR < 0.05',
-                                 TRUE ~ 'Not Significant')) %>% 
-  ggplot(aes(x = logFC, y = -log10(P.Value))) +
-  scale_color_manual(values = c("#BC3C29FF", "grey")) +
-  geom_point(aes(colour=Significant)) +
-  geom_label_repel(
-    data = DMP_e %>% 
-      mutate(Label= case_when(Symbol=='' ~ Probe,
-                              TRUE ~ paste(Probe, Symbol, sep=' | '))) %>% 
-      filter(adj.P.Val < 0.01 | adj.P.Val < 0.05 & abs(logFC) > 0.4),
-    aes(label = Label),
-    alpha=0.5) +
-  coord_cartesian(xlim=c(-0.75,0.75)) +
-  ylab('-log10(P value)')
-
-# plot most significantly differentially methylated CpGs
-top_CG_up <- DMPs %>% tibble::rownames_to_column('Probe') %>% filter(logFC > 0) %>% arrange(P.Value) %>%  dplyr::slice(1:5) %>% pull(Probe)
-top_CG_down <- DMPs %>% tibble::rownames_to_column('Probe') %>% filter(logFC < 0) %>% arrange(P.Value) %>% dplyr::slice(1:5) %>% pull(Probe)
-up <- grabber(top_CG_up)
-down <- grabber(top_CG_down)
-
-up_plot <- ggplot(up, aes(x=Group, y=Beta, colour=Group)) + 
-  facet_wrap(~Probe, ncol=10, strip.position = 'bottom') + 
-  geom_boxplot(width=0.4, outlier.shape = NA,position = position_dodge2(preserve = "total")) +
-  geom_quasirandom(size=0.5, alpha=0.4) +
-  theme_minimal() +
-  ggsci::scale_colour_nejm() +
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
-  theme(axis.title.x=element_blank(),
-        axis.text.x=element_blank(),
-        axis.ticks.x=element_blank()) +
-  theme(strip.text.x = element_text(angle=45)) + 
-  coord_cartesian(ylim=c(0,1))
-
-down_plot <- ggplot(down, aes(x=Group, y=Beta, colour=Group)) + 
-  facet_wrap(~Probe, ncol=10, strip.position = 'bottom') + 
-  geom_boxplot(width=0.4, outlier.shape = NA,position = position_dodge2(preserve = "total")) +
-  geom_quasirandom(size=0.5, alpha=0.4) +
-  theme_minimal() +
-  ggsci::scale_colour_nejm() +
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
-  theme(axis.title.x=element_blank(),
-        axis.text.x=element_blank(),
-        axis.ticks.x=element_blank()) +
-  theme(strip.text.x = element_text(angle=45)) + 
-  coord_cartesian(ylim=c(0,1))
-
-legend <- get_legend(up_plot + theme(legend.position="left"))
-prow <- plot_grid(up_plot + theme(legend.position="none"), 
-                  down_plot + theme(legend.position="none"), 
-                  nrow=2, align = 'hv', labels = c('B','C'))
-plot_grid(plot_grid(volcano, labels=c('A')), prow, legend, nrow=1, rel_widths = c(1,1,0.1))
 
 ```
 
@@ -427,11 +358,10 @@ library(ggplot2)
 z <- DMPs %>% 
   tibble::rownames_to_column('Probe') %>% 
   mutate(Kobor_sig = case_when(Probe %in% kobor_probes ~ 'Yes',
-                               TRUE ~ 'No')) %>% 
-  group_by(Kobor_sig) %>% 
-  summarise(mean=mean(logFC), median=median(logFC))
+                               TRUE ~ 'No')) 
 
-t.test(z$logFC ~ z$Kobor_sig, wel)
+
+t.test(z$logFC ~ z$Kobor_sig)
 
 DMPs %>% 
   tibble::rownames_to_column('Probe') %>% 
