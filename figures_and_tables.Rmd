@@ -169,7 +169,7 @@ kobor_probes <- kobor_sig %>% pull(Probe)
 kobor_sig2 <- readxl::read_xlsx('13148_2018_439_MOESM1_ESM.xlsx', sheet = 'Supplementary table 2')
 kobor_probes_validate2 <- kobor_sig2 %>% pull(CpG)
 # number of Kobor probes in our dataset
-overlap_num <- DMPs %>% tibble::rownames_to_column('Probe') %>% filter(Probe %in% kobor_probes) %>% nrow()
+overlap_num <- DMPs %>% tibble::rownames_to_column('Probe') %>% filter(Probe %in% kobor_probes_validate2) %>% nrow()
 
 DMP_e %>% filter(Probe %in% kobor_probes, P.Value < (0.05/overlap_num)) %>% dplyr::select(Probe, chr, pos, Gene=Symbol, Type, logFC,FDR = adj.P.Val)  %>% mutate(Type = gsub('_',' ', Type)) %>% mutate(Type=gsub('hg19 genes ','',Type)) %>% mutate(Type=gsub('hg19 cpg ','',Type))
 ```

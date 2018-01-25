@@ -58,7 +58,7 @@ ann450k <-  getAnnotation(IlluminaHumanMethylation450kanno.ilmn12.hg19)
 #   GSE65428
 metadata <- fread('~/git/fetal_alcohol/sentrix_id_conversion_table_demographics_v6.txt')
 targets <- read.metharray.sheet("/Volumes/ThunderBay/PROJECTS/brody/fetal_alcohol/Tsai_Sample_083/",pattern="Sheet.csv$")
-targets <- read.metharray.sheet("~/Desktop/fetal_alcohol/Tsai_Sample_083/",pattern="Sheet.csv$")
+#targets <- read.metharray.sheet("~/Desktop/fetal_alcohol/Tsai_Sample_083/",pattern="Sheet.csv$")
 rgSet <- read.metharray.exp(targets=targets)
 sampleNames(rgSet) <- rgSet$Sample_Name
 
@@ -377,6 +377,10 @@ DMPs %>%
 DMPs %>% tibble::rownames_to_column('Probe') %>% filter(Probe %in% kobor_probes, P.Value < (0.05/overlap_num))
 ```
 
+## Save
+```{r}
+save(DMP_e, DMPs, targets, bVals, metadata, file='reanalysis_processed.Rdata')
+```
 ## Conclusion
 We have several hundred significant probes
 
