@@ -23,7 +23,7 @@ library(cowplot)
 load('reanalysis_processed.Rdata')
 ```
 # Figure 1
-```{r, fig.width=6, fig.height=4}
+```{r, fig.width=5.1, fig.height=2}
 # custom fuction to make data avail for ggplot
 grabber <- function(cg_id){
   data <- bVals[cg_id,]
@@ -39,7 +39,7 @@ grabber <- function(cg_id){
 volcano <- DMP_e %>% 
   mutate(Significant = case_when(adj.P.Val < 0.05 ~ 'FDR < 0.05',
                                  TRUE ~ 'Not Significant')) %>% 
-  ggplot(aes(x = logFC, y = -log10(P.Value))) +
+  ggplot(aes(x = `Delta Beta`, y = -log10(P.Value))) +
   scale_color_manual(values = c("#BC3C29FF", "grey")) +
   geom_point(aes(colour=Significant)) +
   geom_label_repel(
@@ -51,7 +51,7 @@ volcano <- DMP_e %>%
     alpha=0.5,
     force=10,
     max.iter = 100000) +
-  coord_cartesian(xlim=c(-0.75,0.75)) +
+  coord_cartesian(xlim=c(-0.1,0.1)) +
   ylab('-log10(P value)')
 
 # plot most significantly differentially methylated CpGs
@@ -62,8 +62,8 @@ down <- grabber(top_CG_down)
 
 up_plot <- ggplot(up, aes(x=Group, y=Beta, colour=Group)) + 
   facet_wrap(~Probe, ncol=10, strip.position = 'bottom') + 
-  geom_boxplot(width=0.4, outlier.shape = NA) +
-  geom_quasirandom(size=0.5, alpha=0.4) +
+  geom_boxplot(width=0.6, outlier.shape = NA) +
+  geom_quasirandom(size=0.5, alpha=0.3) +
   theme_minimal() +
   ggsci::scale_colour_nejm() +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
@@ -75,8 +75,8 @@ up_plot <- ggplot(up, aes(x=Group, y=Beta, colour=Group)) +
 
 down_plot <- ggplot(down, aes(x=Group, y=Beta, colour=Group)) + 
   facet_wrap(~Probe, ncol=10, strip.position = 'bottom') + 
-  geom_boxplot(width=0.4, outlier.shape = NA) +
-  geom_quasirandom(size=0.5, alpha=0.4) +
+  geom_boxplot(width=0.6, outlier.shape = NA) +
+  geom_quasirandom(size=0.5, alpha=0.3) +
   theme_minimal() +
   ggsci::scale_colour_nejm() +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
@@ -95,14 +95,14 @@ plot_grid(volcano, box_plots, legend, nrow=1, labels=c('A',NULL,NULL),rel_widths
 ```
 
 # Figure 2
-```{r, fig.width=6, fig.height=2}
+```{r, fig.width=5, fig.height=2}
 gfi1 <- DMP_e %>% filter(chr=='chr1', pos > 92940000, pos < 92955000) %>% arrange(chr, pos) %>% pull(Probe)
 gfi1_b <- grabber(gfi1)
 gfi1_b <- left_join(gfi1_b, DMP_e %>% filter(grepl('GFI1$', Symbol)), by=c('Probe')) 
 gfi1_meaned <- gfi1_b %>% group_by(Group, Probe) %>% summarise(Beta = mean(Beta), pos=mean(pos))
 gfi1_plot <- gfi1_b %>% 
   ggplot(aes(x=pos, y=Beta, group=Group, colour=Group))  + 
-  geom_jitter(width=100, alpha=0.01) + 
+  geom_jitter(width=100, alpha=0.1) + 
   coord_cartesian(ylim=c(0,1)) + 
   geom_line(data = gfi1_meaned %>% data.frame(), aes(x=pos,y=Beta,colour=Group), size=0.5) + 
   scale_color_nejm() +
@@ -116,16 +116,16 @@ map13<- left_join(map13, DMP_e %>% filter(chr=='chr3', pos > map13_start, pos < 
 map13_meaned <- map13 %>% group_by(Group, Probe) %>% summarise(Beta = mean(Beta), pos=mean(pos))
 map13_plot <- map13 %>% 
   ggplot(aes(x=pos, y=Beta, group=Group, colour=Group))  + 
-  geom_jitter(width=10, alpha=0.01) + 
+  geom_jitter(width=10, alpha=0.1) + 
   coord_cartesian(ylim=c(0,1)) + 
   geom_line(data = map13_meaned %>% data.frame(), aes(x=pos,y=Beta,colour=Group), size=0.5) + 
   scale_color_nejm() +
   coord_cartesian(xlim=c(map13_start,map13_stop)) + xlab('chr3')
 
 
-gfi_gene <- ggplot() + geom_alignment(ensdb, which = TxNameFilter("ENST00000427103"), names.expr=NULL, stat='identity') +
+gfi_gene <- ggplot() + geom_alignment(ensdb, which = TxNameFilter("ENST00000427103"), names.expr=NULL, stat='identity', gap.geom = "segment") +
   coord_cartesian(xlim=c(92940000,92955000)) + xlab('GFI1')
-map3_gene <- ggplot() + geom_alignment(ensdb, which = TxNameFilter("ENST00000424227"), names.expr=NULL, stat='identity') +
+map3_gene <- ggplot() + geom_alignment(ensdb, which = TxNameFilter("ENST00000424227"), names.expr=NULL, stat='identity', gap.geom = "segment") +
   coord_cartesian(xlim=c(map13_start,map13_stop)) + xlab('MAP3K13')
 
 
@@ -154,9 +154,9 @@ write_tsv(background %>% arrange(chr, pos) %>% mutate(pos2=as.integer(pos2)),pat
 Currently filtering at FDR < 0.1.
 In paper with FDR < 0.01 (11 probes)?
 ```{r}
-table2_1 <- DMP_e %>% dplyr::select(Probe, chr, pos, Gene=Symbol, Type, logFC,FDR = adj.P.Val) %>% filter(FDR < 0.1) %>% mutate(Type = gsub('_',' ', Type)) %>% mutate(Type=gsub('hg19 genes ','',Type)) %>% mutate(Type=gsub('hg19 cpg ','',Type))
+table2_1 <- DMP_e %>% dplyr::select(Probe, chr, pos, Gene=Symbol, Type, logFC, `Delta Beta`, FDR = adj.P.Val) %>% filter(FDR < 0.1) %>% mutate(Type = gsub('_',' ', Type)) %>% mutate(Type=gsub('hg19 genes ','',Type)) %>% mutate(Type=gsub('hg19 cpg ','',Type))
 table2_1
-write.csv(table2_1, file='figures/table2.csv')
+#write.csv(table2_1, file='figures/table2.csv')
 
 ```
 
@@ -178,28 +178,26 @@ DMP_e %>% filter(Probe %in% kobor_probes, P.Value < (0.05/overlap_num)) %>% dply
 ```{r}
 
 
-z <- DMPs %>% 
-  tibble::rownames_to_column('Probe') %>% 
+# t test against kobor validation set
+z <- DMP_e %>% 
   mutate(Kobor_sig = case_when(Probe %in% kobor_probes_validate2 ~ 'Validated',
                                TRUE ~ 'No')) 
+t.test(z$`Delta Beta` ~ z$Kobor_sig)
 
-
-t.test(z$logFC ~ z$Kobor_sig)
-
-z <- DMPs %>% 
-  tibble::rownames_to_column('Probe') %>% 
+#
+z <- DMP_e %>% 
   mutate(Kobor_sig = case_when(Probe %in% kobor_probes ~ 'Validated',
                                TRUE ~ 'No')) 
 
 
-t.test(z$logFC ~ z$Kobor_sig)
+t.test(z$`Delta Beta` ~ z$Kobor_sig)
 
 DMP_e %>% 
  mutate(`Kobor Probes` = case_when(Probe %in% kobor_probes_validate2 ~ 'Validated',
                                Probe %in% kobor_probes ~ 'Significant',
                                TRUE ~ 'Not Significant')) %>% 
-  ggplot(aes(x=abs(logFC), colour=`Kobor Probes`)) + 
+  ggplot(aes(x=abs(`Delta Beta`), colour=`Kobor Probes`)) + 
   geom_density() +
   theme_bw() +
-  scale_color_nejm() + coord_cartesian(xlim=c(0,0.5))
+  scale_color_nejm() + coord_cartesian(xlim=c(0,0.1))
 ```
