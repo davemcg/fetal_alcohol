@@ -270,6 +270,12 @@ DMP_c <- DMP_extra %>%
   summarise(Symbol=paste(unique(na.omit(annot.symbol)), collapse=','), Type = paste(unique(na.omit(annot.type)), collapse=', '))
 DMP_e <- left_join(DMPs %>% tibble::rownames_to_column('Probe'), DMP_c, by=c('chr'='seqnames','pos'='start' ))
 
+# calculate delta Beta
+case_means <- bVals[,targets$Sample_Group=='Case'] %>% rowMeans()
+ctrl_means <- bVals[,targets$Sample_Group=='Control'] %>% rowMeans()
+delta <- case_means - ctrl_means
+DMP_e <- left_join(DMP_e, delta %>% data.frame() %>% rownames_to_column('Probe'))
+colnames(DMP_e )[33] <- 'Delta Beta'
 head(DMPs, n=10)
 head(DMP_e, n=10)
 
@@ -375,6 +381,11 @@ DMPs %>%
 ## the successes between Kobor and ours
 ```{r}
 DMPs %>% tibble::rownames_to_column('Probe') %>% filter(Probe %in% kobor_probes, P.Value < (0.05/overlap_num))
+```
+
+## replication with Kobor 2016
+```{r}
+kobor_full <- fread('data/NDN.full.results.table.txt')
 ```
 
 ## Save
