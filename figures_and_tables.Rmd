@@ -152,16 +152,35 @@ write_tsv(background %>% arrange(chr, pos) %>% mutate(pos2=as.integer(pos2)),pat
 
 # Table 2
 Currently filtering at FDR < 0.1.
-In paper with FDR < 0.01 (11 probes)?
+
+In paper with FDR < 0.01 (11 probes)
 ```{r}
 table2_1 <- DMP_e %>% dplyr::select(Probe, chr, pos, Gene=Symbol, Type, logFC, `Delta Beta`, FDR = adj.P.Val) %>% filter(FDR < 0.1) %>% mutate(Type = gsub('_',' ', Type)) %>% mutate(Type=gsub('hg19 genes ','',Type)) %>% mutate(Type=gsub('hg19 cpg ','',Type))
-table2_1
+table2_1 %>% DT::datatable()
 #write.csv(table2_1, file='figures/table2.csv')
 
 ```
 
 # Kobor validation 
-## Table 3
+
+## GFI1 and MAP3K13
+```{r}
+kobor_full <- fread('data/NDN.full.results.table.txt')
+DMP_e %>% filter(adj.P.Val<0.1, grepl('GFI1|MAP3K13', Symbol)) %>% arrange(pos) %>% 
+  dplyr::select(Probe, chr, pos, Gene=Symbol, Type, logFC, `Delta Beta`, FDR = adj.P.Val) %>% mutate(Type = gsub('_',' ', Type)) %>% mutate(Type=gsub('hg19 genes ','',Type)) %>% mutate(Type=gsub('hg19 cpg ','',Type)) %>% DT::datatable()
+
+DMP_e %>% filter(adj.P.Val<0.1, grepl('GFI1|MAP3K13', Symbol)) %>% arrange(pos) %>% 
+  dplyr::select(Probe, chr, pos, Gene=Symbol, Type, logFC, `Delta Beta`, FDR = adj.P.Val) %>% mutate(Type = gsub('_',' ', Type)) %>% mutate(Type=gsub('hg19 genes ','',Type)) %>% mutate(Type=gsub('hg19 cpg ','',Type)) %>% left_join(kobor_full, by=c('Probe')) %>% filter(P.Value < (0.05/8)) %>% DT::datatable()
+
+
+```
+## Table 3a ((what in our set validates in theirs))
+```{r}
+
+match_count <- DMP_e %>% filter(adj.P.Val < 0.05) %>% left_join(kobor_full,by=c('Probe')) %>% filter(!is.na(P.Value.y)) %>% nrow()
+DMP_e %>% filter(adj.P.Val < 0.05) %>% left_join(kobor_full,by=c('Probe')) %>% filter(P.Value.y < (0.05/match_count)) %>% DT::datatable()
+```
+## Table 3b (what in their set (their replication) validates in ours)
 ```{r}
 kobor_sig <- readxl::read_xlsx('13072_2016_74_MOESM2_ESM.xlsx')
 kobor_probes <- kobor_sig %>% pull(Probe)
@@ -171,7 +190,7 @@ kobor_probes_validate2 <- kobor_sig2 %>% pull(CpG)
 # number of Kobor probes in our dataset
 overlap_num <- DMPs %>% tibble::rownames_to_column('Probe') %>% filter(Probe %in% kobor_probes_validate2) %>% nrow()
 
-DMP_e %>% filter(Probe %in% kobor_probes, P.Value < (0.05/overlap_num)) %>% dplyr::select(Probe, chr, pos, Gene=Symbol, Type, logFC,FDR = adj.P.Val)  %>% mutate(Type = gsub('_',' ', Type)) %>% mutate(Type=gsub('hg19 genes ','',Type)) %>% mutate(Type=gsub('hg19 cpg ','',Type))
+DMP_e %>% filter(Probe %in% kobor_probes, P.Value < (0.05/overlap_num)) %>% dplyr::select(Probe, chr, pos, Gene=Symbol, Type, logFC,FDR = adj.P.Val)  %>% mutate(Type = gsub('_',' ', Type)) %>% mutate(Type=gsub('hg19 genes ','',Type)) %>% mutate(Type=gsub('hg19 cpg ','',Type)) %>% DT::datatable()
 ```
 
 ## Supplementary Figure 1

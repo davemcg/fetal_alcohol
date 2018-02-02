@@ -388,6 +388,11 @@ DMPs %>% tibble::rownames_to_column('Probe') %>% filter(Probe %in% kobor_probes,
 kobor_full <- fread('data/NDN.full.results.table.txt')
 ```
 
+## what in our dataset replicates with kobor?
+```{r}
+match_count <- DMP_e %>% filter(adj.P.Val < 0.05) %>% left_join(kobor_full,by=c('Probe')) %>% filter(!is.na(P.Value.y)) %>% nrow()
+DMP_e %>% filter(adj.P.Val < 0.05) %>% left_join(kobor_full,by=c('Probe')) %>% filter(P.Value.y < (0.05/match_count))
+```
 ## Save
 ```{r}
 save(DMP_e, DMPs, targets, bVals, metadata, file='reanalysis_processed.Rdata')
