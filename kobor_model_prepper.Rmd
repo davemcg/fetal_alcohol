@@ -1,0 +1,95 @@
+---
+title: "Prep beta values for Kobor model "
+output: html_notebook
+---
+```{r}
+# package loading
+library(data.table)
+library(tidyverse)
+library(annotatr)
+library(ggthemes)
+library(ggrepel)
+library(ggsci)
+library(cowplot)
+library(limma)
+library(minfi)
+library(IlluminaHumanMethylation450kanno.ilmn12.hg19)
+library(IlluminaHumanMethylation450kmanifest)
+library(GenomicFeatures)
+library(RColorBrewer)
+library(missMethyl)
+library(matrixStats)
+library(Gviz)
+library(DMRcate)
+library(stringr)
+library(data.table)
+
+
+sessionInfo()
+```
+
+# What this does
+Create csv file(s) for https://fasdpredictor.shinyapps.io/fasdpredictorapp/
+
+## Pull in annotation, metadata, and raw Illumina 450k data from the idat files
+
+```{r}
+# pull annotation
+ann450k <-  getAnnotation(IlluminaHumanMethylation450kanno.ilmn12.hg19)
+
+# bring in raw data (Illumina .idat)
+# data and code available at:
+#   https://github.com/davemcg/fetal_alcohol
+#   GSE65428
+metadata <- fread('~/git/fetal_alcohol/sentrix_id_conversion_table_demographics_v6.txt')
+targets <- read.metharray.sheet("/Volumes/ThunderBay/PROJECTS/brody/fetal_alcohol/Tsai_Sample_083/",pattern="Sheet.csv$")
+#targets <- read.metharray.sheet("~/Desktop/fetal_alcohol/Tsai_Sample_083/",pattern="Sheet.csv$")
+rgSet <- read.metharray.exp(targets=targets)
+sampleNames(rgSet) <- rgSet$Sample_Name
+
+# add sample group info to targets, fewer rows in metadata, already parsed down to remove outliers
+targets <- left_join(data.frame(metadata),targets,by=c("Sample"="Sample_Name"))
+targets$Sample_Group <- targets$Case.Control
+targets$Sample_Name <- targets$Sample
+
+# remove samples based on previous outlier analysis / ethnicity (see Methods of "DNA methylation analyses in archived newborn bloodspots reveal signals associated with fetal alcohol syndrome, maternal smoking, gender, and ethnicity")
+keep <-  rgSet$Sample_Name %in% targets$Sample_Name
+rgSet <- rgSet[,keep]
+
+
+```
+
+
+## Normalize data with preprocessQuantile 
+
+```{r, fig.width=2}
+# normalize the data; this results in a GenomicRatioSet object
+mSetSq <- preprocessQuantile(rgSet)
+
+```
+
+
+## Calculate M-values for statistical analysis and Beta values for plotting
+
+```{r}
+bVals <- getBeta(mSetSq)
+#head(bVals[,1:5])
+```
+
+# explicitly match targets sample order (rows) with mVars
+```{r, fig.height=2, fig.width=4}
+targets <- targets[match(colnames(bVals), targets$Sample),]
+```
+
+
+# Create bVals csv in kobor specific order, as downloaded from their shiny app
+```{r}
+probes <- fread('data/cpgs2input_fasdpredictor.txt')
+bVals_kobor_order <- bVals[probes$x,]
+write_csv(bVals_kobor_order %>% t() %>% data.frame() %>% rownames_to_column(''), path='bVals_kobor_probes.csv')
+```
+
+# Write metadata (which are FAS / control)
+```{r}
+write_csv(targets %>% dplyr::select(Sample_Group) %>% mutate(Sample_Group = case_when(Sample_Group=='Case'  ~ 'FASD', TRUE ~ Sample_Group)), path='bVals_kobor_probes_metadata.csv')
+```
